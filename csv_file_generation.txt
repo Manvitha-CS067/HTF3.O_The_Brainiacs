@@ -1,0 +1,45 @@
+import pandas as pd
+
+# Load your alumni CSV file
+df = pd.read_csv("D:\\TheBrainiacs(HTF)\\alumni_data.csv", encoding='latin1')
+
+# Check if 'Distance' already exists (for resuming)
+if 'Distance' not in df.columns:
+    df['Distance'] = None
+
+
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
+import time
+
+# Hardcoded coordinates for Mangalore
+college_coords = (12.9141, 74.8560)
+
+# Initialize geolocator
+geolocator = Nominatim(user_agent="alumni_locator")
+
+
+
+batch_size = 100
+start_index = df['Distance'].isna().idxmax()  # Resumes from where it stopped
+
+for i in range(start_index, len(df), batch_size):
+    batch_df = df.iloc[i:i+batch_size]
+
+    for idx, row in batch_df.iterrows():
+        location = row['Location']
+        try:
+            loc = geolocator.geocode(location)
+            if loc:
+                alumni_coords = (loc.latitude, loc.longitude)
+                distance = geodesic(college_coords, alumni_coords).km
+                df.at[idx, 'Distance'] = round(distance, 2)
+            else:
+                df.at[idx, 'Distance'] = None
+        except Exception as e:
+            df.at[idx, 'Distance'] = None
+        time.sleep(1)
+
+    # Save after each batch
+    df.to_csv("D:\\TheBrainiacs(HTF)\\alumni_data_with_distance.csv", index=False)
+    print(f"✅ Saved up to row {i+batch_size}")
